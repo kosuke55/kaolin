@@ -29,22 +29,29 @@ import kaolin as kal
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--modelnet-root', type=str, help='Root directory of the ModelNet dataset.')
-parser.add_argument('--cache-dir', type=str, default=None, help='Path to write intermediate representation to.')
+parser.add_argument('--cache-dir', type=str, default='/media/kosuke/SANDISK/ShapeNetCore.v2/kaolin_cache', help='Path to write intermediate representation to.')
 parser.add_argument('--expid', type=str, default='3D_IWGAN', help='Unique experiment identifier.')
 parser.add_argument('--device', type=str, default='cuda', help='Device to use')
-parser.add_argument('--categories', type=str, nargs='+', default=['chair'], help='list of object classes to use')
+parser.add_argument('--categories', type=str, nargs='+', default=['03797390'], help='list of object classes to use')
 parser.add_argument('--epochs', type=int, default=50000, help='Number of train epochs.')
 parser.add_argument('--batchsize', type=int, default=50, help='Batch size.')
 parser.add_argument('--print-every', type=int, default=2, help='Print frequency (batches).')
 parser.add_argument('--logdir', type=str, default='log', help='Directory to log data to.')
 parser.add_argument('--resume', action='store_true', help='Resume training from last checkpoint.')
 
+parser.add_argument('--shapenet-root', type=str,
+                    default='/media/kosuke/SANDISK/ShapeNetCore.v2',
+                    help='Root directory of the ModelNet dataset.')
+
 args = parser.parse_args()
 
 
 # Setup Dataloader
-train_set = kal.datasets.modelnet.ModelNetVoxels(basedir=args.modelnet_root, cache_dir=args.cache_dir,
-                                                 categories=args.categories, resolutions=[30])
+# train_set = kal.datasets.modelnet.ModelNetVoxels(basedir=args.modelnet_root, cache_dir=args.cache_dir,
+#                                                  categories=args.categories, resolutions=[30])
+train_set = kal.datasets.shapenet.ShapeNet_Voxels(root=args.shapenet_root, cache_dir=args.cache_dir,
+                                                  categories=args.categories, resolutions=[30])
+
 dataloader_train = DataLoader(train_set, batch_size=args.batchsize, shuffle=True, num_workers=8)
 
 

@@ -40,6 +40,8 @@ gen.eval()
 
 z = torch.normal(torch.zeros(args.batchsize, 200), torch.ones(args.batchsize, 200)).to(args.device)
 
+print(z.shape)
+
 fake_voxels = gen(z)
 
 for i, model in enumerate(fake_voxels): 
@@ -49,4 +51,11 @@ for i, model in enumerate(fake_voxels):
     verts, faces = kal.conversions.voxelgrid_to_quadmesh(model)
     mesh = kal.rep.QuadMesh.from_tensors(verts, faces)
     mesh.laplacian_smoothing(iterations=3)
-    mesh.show()
+    # mesh.show()
+    
+    image = mesh.save_image()
+    print(image)
+
+    # scene = mesh.scene()
+    # with tempfile.NamedTemporaryFile(suffix='.png') as file_obj:
+    #     scene.save_image('mesh_{}'.format(i), resolution=(1080,1080))
