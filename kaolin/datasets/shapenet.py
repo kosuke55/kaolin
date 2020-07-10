@@ -368,6 +368,7 @@ class ShapeNet_Voxels(data.Dataset):
         split (float): amount of dataset that is training out of 1
         resolutions (list): list of resolutions to be returned
         no_progress (bool): if True, disables progress bar
+        voxel_range (float): Range of voxelization.
 
     Returns:
         .. code-block::
