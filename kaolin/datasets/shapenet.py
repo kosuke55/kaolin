@@ -388,7 +388,8 @@ class ShapeNet_Voxels(data.Dataset):
     """
 
     def __init__(self, root: str, cache_dir: str, categories: list = ['chair'], train: bool = True,
-                 split: float = .7, resolutions=[128, 32], no_progress: bool = False):
+                 split: float = .7, resolutions=[128, 32], no_progress: bool = False,
+                 voxel_range: float = 1.0):
         self.root = Path(root)
         self.cache_dir = Path(cache_dir) / 'voxels'
         self.cache_transforms = {}
@@ -407,7 +408,10 @@ class ShapeNet_Voxels(data.Dataset):
 
         for res in self.params['resolutions']:
             self.cache_transforms[res] = tfs.CacheCompose([
-                tfs.TriangleMeshToVoxelGrid(res, normalize=False, vertex_offset=0.5),
+                tfs.TriangleMeshToVoxelGrid(res,
+                                            normalize=False,
+                                            vertex_offset=0.5,
+                                            voxel_range=voxel_range),
                 tfs.FillVoxelGrid(thresh=0.5),
                 tfs.ExtractProjectOdmsFromVoxelGrid()
             ], self.cache_dir)
