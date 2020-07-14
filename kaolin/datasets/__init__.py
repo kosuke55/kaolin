@@ -2,6 +2,7 @@ from .shapenet import *
 from .modelnet import *
 from .shrec import *
 from .scannet import *
+from .ycb import *
 
 # nuscenes-devkit will import matplotlib trying for an x11 backend, workaround here
 import matplotlib

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import time
 from typing import Union
 
 import torch

@@ -24,15 +24,44 @@ from tqdm import tqdm
 from utils import calculate_gradient_penalty
 from architectures import Generator, Discriminator
 
-import kaolin as kal 
+import kaolin as kal
 
+
+all_category = ['table', 'monitor', 'phone',
+                'watercraft', 'chair', 'lamp',
+                'speaker', 'bench', 'plane',
+                'bathtub', 'bookcase', 'bag',
+                'basket', 'bowl', 'bus',
+                'cabinet', 'camera', 'car',
+                'dishwasher', 'file', 'knife',
+                'laptop', 'mailbox', 'microwave',
+                'piano', 'pillow', 'pistol',
+                'printer', 'rocket', 'sofa',
+                'washer', 'rifle', 'can', 'mug']
+
+
+all_category =  [
+    '019_pitcher_base',
+    '025_mug',
+    '035_power_drill',
+    '048_hammer',
+    '051_large_clamp',
+    '022_windex_bottle',
+    '033_spatula',
+    '042_adjustable_wrench',
+    '050_medium_clamp',
+    '052_extra_large_clamp',
+]
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--modelnet-root', type=str, help='Root directory of the ModelNet dataset.')
-parser.add_argument('--cache-dir', type=str, default='/media/kosuke/SANDISK/ShapeNetCore.v2/kaolin_cache', help='Path to write intermediate representation to.')
+# parser.add_argument('--cache-dir', type=str, default='/media/kosuke/SANDISK/ShapeNetCore.v2/kaolin_cache',
+#                     help='Path to write intermediate representation to.')
+parser.add_argument('--cache-dir', type=str, default='/media/kosuke/SANDISK/meshdata/ycb_hanging_object/kaolin_cache',
+                    help='Path to write intermediate representation to.')
 parser.add_argument('--expid', type=str, default='3D_IWGAN', help='Unique experiment identifier.')
 parser.add_argument('--device', type=str, default='cuda', help='Device to use')
-parser.add_argument('--categories', type=str, nargs='+', default=['03797390'], help='list of object classes to use')
+parser.add_argument('--categories', type=str, nargs='+', default=all_category, help='list of object classes to use')
 parser.add_argument('--epochs', type=int, default=50000, help='Number of train epochs.')
 parser.add_argument('--batchsize', type=int, default=50, help='Batch size.')
 parser.add_argument('--print-every', type=int, default=2, help='Print frequency (batches).')
@@ -40,8 +69,12 @@ parser.add_argument('--logdir', type=str, default='log', help='Directory to log 
 parser.add_argument('--resume', action='store_true', help='Resume training from last checkpoint.')
 
 parser.add_argument('--shapenet-root', type=str,
-                    default='/media/kosuke/SANDISK/ShapeNetCore.v2',
-                    help='Root directory of the ModelNet dataset.')
+                    default='/media/kosuke/SANDISK/meshdata/ShapeNetCore.v2',
+                    help='Root directory of the shapenet dataset.')
+
+parser.add_argument('--ycb-root', type=str,
+                    default='/media/kosuke/SANDISK/meshdata/ycb_hanging_object/urdf',
+                    help='Root directory of the ycb dataset.')
 
 args = parser.parse_args()
 
@@ -49,8 +82,14 @@ args = parser.parse_args()
 # Setup Dataloader
 # train_set = kal.datasets.modelnet.ModelNetVoxels(basedir=args.modelnet_root, cache_dir=args.cache_dir,
 #                                                  categories=args.categories, resolutions=[30])
-train_set = kal.datasets.shapenet.ShapeNet_Voxels(root=args.shapenet_root, cache_dir=args.cache_dir,
-                                                  categories=args.categories, resolutions=[30])
+# train_set = kal.datasets.shapenet.ShapeNet_Voxels(root=args.shapenet_root, cache_dir=args.cache_dir,
+#                                                   categories=args.categories, resolutions=[30],
+#                                                   voxel_range=1.)
+
+
+train_set = kal.datasets.ycb_Voxels(root=args.ycb_root, cache_dir=args.cache_dir,
+                                    categories=args.categories, resolutions=[30],
+                                    voxel_range=1.)
 
 dataloader_train = DataLoader(train_set, batch_size=args.batchsize, shuffle=True, num_workers=8)
 
@@ -109,7 +148,6 @@ class Engine(object):
             real_voxels = torch.zeros(voxels.shape[0], 32, 32, 32).to(args.device)
             real_voxels[:, 1:-1, 1:-1, 1:-1] = voxels.to(args.device)
 
-
             z = torch.normal(torch.zeros(voxels.shape[0], 200), torch.ones(voxels.shape[0], 200)).to(args.device)
 
             fake_voxels = gen(z)
@@ -118,11 +156,11 @@ class Engine(object):
             gp_loss = 10 * calculate_gradient_penalty(dis, real_voxels.data, fake_voxels.data)
             d_loss = -d_on_real + d_on_fake + gp_loss
 
-            if i % 5 == 0: 
+            if i % 5 == 0:
                 g_loss = -d_on_fake
                 g_loss.backward()
                 optim_g.step()
-            else: 
+            else:
                 d_loss.backward()
                 optim_d.step()
 
@@ -146,7 +184,6 @@ class Engine(object):
             run_data = json.load(f)
         self.cur_epoch = run_data['epoch']
 
-
     def save(self):
         # Create a dictionary of all data to save
         log_table = {
@@ -167,7 +204,7 @@ class Engine(object):
 
 trainer = Engine(print_every=args.print_every, resume=args.resume)
 
-for epoch in range(args.epochs): 
+for epoch in range(args.epochs):
     trainer.train()
-    if epoch % 5 == 4: 
+    if epoch % 5 == 4:
         trainer.save()

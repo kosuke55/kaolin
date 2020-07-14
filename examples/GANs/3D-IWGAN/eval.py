@@ -17,6 +17,8 @@ import os
 import argparse
 import torch
 
+import cc3d
+
 from architectures import Generator
 import kaolin as kal 
 
@@ -47,15 +49,13 @@ fake_voxels = gen(z)
 for i, model in enumerate(fake_voxels): 
     print('Rendering model {}'.format(i))
     model = model[:-2, :-2, :-2]
-    model = kal.transforms.voxelfunc.max_connected(model, .7)
+    # model = kal.transforms.voxelfunc.max_connected(model, .7)
+    model[torch.where(model >= 0.7)] = 1
+    model[torch.where(model < 0.7)] = 0
+    model = model.cpu().detach().numpy()
+    model = cc3d.connected_components(model, connectivity=6)
+
     verts, faces = kal.conversions.voxelgrid_to_quadmesh(model)
     mesh = kal.rep.QuadMesh.from_tensors(verts, faces)
     mesh.laplacian_smoothing(iterations=3)
-    # mesh.show()
-    
-    image = mesh.save_image()
-    print(image)
-
-    # scene = mesh.scene()
-    # with tempfile.NamedTemporaryFile(suffix='.png') as file_obj:
-    #     scene.save_image('mesh_{}'.format(i), resolution=(1080,1080))
+    mesh.show()
