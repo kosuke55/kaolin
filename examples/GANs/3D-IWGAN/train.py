@@ -26,6 +26,7 @@ from architectures import Generator, Discriminator
 
 import kaolin as kal
 
+import ipdb
 
 all_category = ['table', 'monitor', 'phone',
                 'watercraft', 'chair', 'lamp',
@@ -50,7 +51,7 @@ all_category =  [
     '033_spatula',
     '042_adjustable_wrench',
     '050_medium_clamp',
-    '052_extra_large_clamp',
+    '052_extra_large_clamp'
 ]
 
 parser = argparse.ArgumentParser()
@@ -90,7 +91,6 @@ args = parser.parse_args()
 train_set = kal.datasets.ycb_Voxels(root=args.ycb_root, cache_dir=args.cache_dir,
                                     categories=args.categories, resolutions=[30],
                                     voxel_range=1.)
-
 dataloader_train = DataLoader(train_set, batch_size=args.batchsize, shuffle=True, num_workers=8)
 
 
@@ -127,6 +127,7 @@ class Engine(object):
         self.val_loss = []
         self.bestval = 0
         self.print_every = print_every
+        self.count = 0
 
         if resume:
             self.load()
@@ -156,20 +157,33 @@ class Engine(object):
             gp_loss = 10 * calculate_gradient_penalty(dis, real_voxels.data, fake_voxels.data)
             d_loss = -d_on_real + d_on_fake + gp_loss
 
-            if i % 5 == 0:
+            # if i % 5 == 0:
+            #     g_loss = -d_on_fake
+            #     g_loss.backward()
+            #     optim_g.step()
+            # else:
+            #     d_loss.backward()
+            #     optim_d.step()
+
+            if self.count == 0:
                 g_loss = -d_on_fake
                 g_loss.backward()
                 optim_g.step()
+                self.count += 1
             else:
                 d_loss.backward()
                 optim_d.step()
+                self.count += 1
 
             # logging
             num_batches += 1
-            if i % args.print_every == 0:
+            # if i % args.print_every == 0:
+            if self.count == 0:
                 message = f'[TRAIN] Epoch {self.cur_epoch:03d}, Batch {i:03d}: gen: {float(g_loss.item()):2.3f}'
                 message += f' dis = {float(d_loss.item()):2.3f}, gp = {float(gp_loss.item()):2.3f}'
                 tqdm.write(message)
+            if self.count == 5:
+                self.count = 0
 
         self.train_loss.append(loss_epoch)
         self.cur_epoch += 1
