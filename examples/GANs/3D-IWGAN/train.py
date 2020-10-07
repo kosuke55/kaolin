@@ -15,6 +15,8 @@
 import argparse
 import json
 import os
+
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -41,7 +43,7 @@ all_category = ['table', 'monitor', 'phone',
                 'washer', 'rifle', 'can', 'mug']
 
 
-all_category =  [
+all_category = [
     '019_pitcher_base',
     '025_mug',
     '035_power_drill',
@@ -81,18 +83,19 @@ args = parser.parse_args()
 
 
 # Setup Dataloader
-# train_set = kal.datasets.modelnet.ModelNetVoxels(basedir=args.modelnet_root, cache_dir=args.cache_dir,
-#                                                  categories=args.categories, resolutions=[30])
-# train_set = kal.datasets.shapenet.ShapeNet_Voxels(root=args.shapenet_root, cache_dir=args.cache_dir,
-#                                                   categories=args.categories, resolutions=[30],
-#                                                   voxel_range=1.)
-
-
-train_set = kal.datasets.ycb_Voxels(root=args.ycb_root, cache_dir=args.cache_dir,
-                                    categories=args.categories, resolutions=[30],
-                                    voxel_range=1.)
-dataloader_train = DataLoader(train_set, batch_size=args.batchsize, shuffle=True, num_workers=8)
-
+# train_set = kal.datasets.modelnet.ModelNetVoxels(
+#     basedir=args.modelnet_root, cache_dir=args.cache_dir,
+#     categories=args.categories, resolutions=[30])
+# train_set = kal.datasets.shapenet.ShapeNet_Voxels(
+#     root=args.shapenet_root, cache_dir=args.cache_dir,
+#     categories=args.categories, resolutions=[30],
+#     voxel_range=1.)
+train_set = kal.datasets.ycb_Voxels(
+    root=args.ycb_root, cache_dir=args.cache_dir,
+    categories=args.categories, resolutions=[30],
+    voxel_range=1.)
+dataloader_train = DataLoader(
+    train_set, batch_size=args.batchsize, shuffle=True, num_workers=8)
 
 # Setup Models
 gen = Generator().to(args.device)
@@ -140,21 +143,27 @@ class Engine(object):
         dis.train()
 
         # Train loop
-        for i, sample in enumerate(tqdm(dataloader_train), 0):
+        for i, sample in tqdm(enumerate(dataloader_train), total=len(
+                dataloader_train), desc='epoch={}'.format(self.cur_epoch)):
+
             voxels = sample['data']['30']
             optim_g.zero_grad(), gen.zero_grad()
             optim_d.zero_grad(), dis.zero_grad()
 
             # data creation
-            real_voxels = torch.zeros(voxels.shape[0], 32, 32, 32).to(args.device)
+            real_voxels = torch.zeros(
+                voxels.shape[0], 32, 32, 32).to(args.device)
             real_voxels[:, 1:-1, 1:-1, 1:-1] = voxels.to(args.device)
 
-            z = torch.normal(torch.zeros(voxels.shape[0], 200), torch.ones(voxels.shape[0], 200)).to(args.device)
+            z = torch.normal(
+                torch.zeros(voxels.shape[0], 200),
+                torch.ones(voxels.shape[0], 200)).to(args.device)
 
             fake_voxels = gen(z)
             d_on_fake = torch.mean(dis(fake_voxels))
             d_on_real = torch.mean(dis(real_voxels))
-            gp_loss = 10 * calculate_gradient_penalty(dis, real_voxels.data, fake_voxels.data)
+            gp_loss = 10 * calculate_gradient_penalty(
+                dis, real_voxels.data, fake_voxels.data)
             d_loss = -d_on_real + d_on_fake + gp_loss
 
             # if i % 5 == 0:
@@ -198,17 +207,21 @@ class Engine(object):
             run_data = json.load(f)
         self.cur_epoch = run_data['epoch']
 
-    def save(self):
+    def save(self, epoch):
         # Create a dictionary of all data to save
         log_table = {
             'epoch': self.cur_epoch
         }
 
         # Save the recent model/optimizer states
-        torch.save(gen.state_dict(), os.path.join(logdir, 'gen.pth'))
-        torch.save(dis.state_dict(), os.path.join(logdir, 'dis.pth'))
-        torch.save(optim_g.state_dict(), os.path.join(logdir, 'optim_g.pth'))
-        torch.save(optim_d.state_dict(), os.path.join(logdir, 'optim_d.pth'))
+        torch.save(
+            gen.state_dict(), os.path.join(logdir, 'gen_{}.pth'.format(epoch)))
+        torch.save(
+            dis.state_dict(), os.path.join(logdir, 'dis_{}.pth'.format(epoch)))
+        torch.save(
+            optim_g.state_dict(), os.path.join(logdir, 'optim_g_{}.pth'.format(epoch)))
+        torch.save(
+            optim_d.state_dict(), os.path.join(logdir, 'optim_d_{}.pth'.format(epoch)))
         # Log other data corresponding to the recent model
         with open(os.path.join(logdir, 'recent.log'), 'w') as f:
             f.write(json.dumps(log_table))
@@ -220,5 +233,6 @@ trainer = Engine(print_every=args.print_every, resume=args.resume)
 
 for epoch in range(args.epochs):
     trainer.train()
-    if epoch % 5 == 4:
-        trainer.save()
+    # if epoch % 5 == 4:
+    if np.mod(epoch, 1000) == 0:
+        trainer.save(epoch)
